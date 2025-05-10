@@ -8,17 +8,25 @@ from typing import Union
 from pymarc import MARCReader
 from pymarc import exceptions as exc
 
+from utils import decode_64
+
+
 def to_csv(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
-    
     with open(filepath, "rb") as f:
         reader = MARCReader(f)
-     
-        csv_records = []
-        marc_tags = []
 
-        for marc_record in reader:
+        csv_records = []
+        # every entry should have a leader as first line,
+        # and leader is not include in marc_record.get_fields, so handled separately
+        marc_tags = ["LDR"]
+
+        for i, marc_record in enumerate(reader):
             csv_record = {}
+            if not marc_record:
+                print(f"warning: record {i} skipped")
             if marc_record:
+                leader = marc_record.leader.leader
+                csv_record["LDR"] = leader
                 for marc_field in marc_record.get_fields():
                     if marc_field.tag not in marc_tags:
                         marc_tags.append(marc_field.tag)
@@ -35,15 +43,15 @@ def to_csv(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
                 print(reader.current_chunk)
                 # break/continue/raise
 
-
     marc_tags.sort()
 
-    print(','.join(['"%s"' % tag for tag in marc_tags]))
+    print(",".join(['"%s"' % tag for tag in marc_tags]))
     writer = csv.DictWriter(sys.stdout, marc_tags)
     writer.writerows(csv_records)
-    
+
     with open(dest, "w") as f:
         file_writer = csv.DictWriter(f, marc_tags)
+        file_writer.writeheader()
         file_writer.writerows(csv_records)
 
 
@@ -60,7 +68,11 @@ if __name__ == "__main__":
         msg = "File does not exists."
         raise ValueError(msg)
 
-    if filepath.name.split(".")[1] == "marc" or filepath.name.split(".")[1] == "mrc" or filepath.name.split(".")[1] == "dat":
+    if (
+        filepath.name.split(".")[1] == "marc"
+        or filepath.name.split(".")[1] == "mrc"
+        or filepath.name.split(".")[1] == "dat"
+    ):
         ext = "csv"
 
     elif filepath.name.split(".")[1] == "csv":
@@ -70,9 +82,7 @@ if __name__ == "__main__":
         msg = "File must have mrc, marc, dat, or csv extension"
         raise ValueError(msg)
 
-
-
-    dest = filepath.parent / f"{filepath.name.split('.')[0]}.{ext}" 
+    dest = filepath.parent / f"{filepath.name.split('.')[0]}.{ext}"
 
     print(f"dest is {dest}")
     # first, handle marc to csv conversion
@@ -82,5 +92,3 @@ if __name__ == "__main__":
     # this refers to the extension for the file to write, i.e. to convert to
 
     # now, handle csv to marc conversion
-
-
