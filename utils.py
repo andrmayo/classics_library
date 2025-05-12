@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from typing import Optional
+from typing import Optional, Union
 
 
 def _char_to_64(encoding_char: str) -> Optional[int]:
@@ -19,31 +19,62 @@ def _char_to_64(encoding_char: str) -> Optional[int]:
     return of_64
 
 
+def _to_byte(of_64: Union[int, str]) -> list:
+    if isinstance(of_64, str):
+        of_64 = int(of_64)
+    assert of_64 < 64, (
+        f"input to _to_byte contains invalid base64 character: {of_64}"
+    )
+    byte = [0, 0, 0, 0, 0, 0]
+    if of_64 % 2 == 1:
+        byte[5] = 1
+    if of_64 % 4 > 1:
+        byte[4] = 1
+    if of_64 % 8 > 3:
+        byte[3] = 1
+    if of_64 % 16 > 7:
+        byte[2] = 1
+    if of_64 % 32 > 15:
+        byte[1] = 1
+    if of_64 % 64 > 31:
+        byte[0] = 1
+    return byte
+
 def decode_64(encoded: str) -> Generator[str]:
     """
     Function to convert base64 in utf-8 (i.e. with
-    alphanumeric characters, "+", and "/") into ASCII characters.
+    alphanumeric characters, "+", and "/") into unicode characters.
+    Returns a generator that yields decoded string character by character.
     """
+    bytes = []
     for char in encoded:
+        # deal with padding character
+        if char == "=" or char.isspace():
+            continue
         of_64 = _char_to_64(char)
         assert of_64 is not None, (
-            f"string:\n{encoded}\n\ncontains invalid base64 character {char}"
+            f"string:\n{encoded}\n\ncontains invalid base64 character: {char}"
         )
-        byte = [0, 0, 0, 0, 0, 0]
-        if of_64 % 2 == 1:
-            byte[5] = 1
-        if of_64 % 4 > 1:
-            byte[4] = 1
-        if of_64 % 8 > 3:
-            byte[3] = 1
-        if of_64 % 16 > 7:
-            byte[2] = 1
-        if of_64 % 32 > 15:
-            byte[1] = 1
-        if of_64 % 64 > 31:
-            byte[0] = 1
+        byte = _to_byte(of_64)
         print(" ".join([str(num) for num in byte]))
-        val = 0
-        for i in range(len(byte)):
-            val += byte[-(i)] * (2**i)
+        bytes.extend(byte)
+    print(len(bytes))
+    print(bytes)
+    # discard any bits left over from taking groups of 8
+    if len(bytes) % 8 != 0:
+        bytes = bytes[:len(bytes)-len(bytes)%8]
+    #assert len(bytes) % 8 == 0, "outputs of _to_byte from base64 encoding not divisible by 8"
+    val = 0
+    # TODO: debug the following lines. Outputted ascii/unicode values are not right, but right nunmber of characters.
+    for i in range(int(len(bytes) / 8)):
+        binary_byte = bytes[i*8: (i+1)*8]
+        for j, bit in enumerate(binary_byte):
+            # TODO: handle utf-8 binary encodings, which have 1 as first bit
+            if j == 0 and bit == 1:
+                print("this is utf-8")
+            # handle regular ASCII binary encodings
+            val += bit**(7-j)
         yield chr(val)
+
+
+
