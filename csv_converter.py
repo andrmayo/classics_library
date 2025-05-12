@@ -7,11 +7,20 @@ from typing import Union
 
 from pymarc import MARCReader
 from pymarc import exceptions as exc
+from pymarc import Record, Field, Subfield, Indicators, Leader
+
 
 from utils import decode_64
 
 
-def to_csv(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
+def to_csv(
+    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=False
+) -> None:
+    """function to convert marc file to csv file.
+    I am not sure how this will handle subfields.
+    To include indicators in format <indicators>$<field>, pass include_indicator=True,
+    this is mainly to facilitate converting back to marc format.
+    """
     with open(filepath, "rb") as f:
         reader = MARCReader(f)
 
@@ -30,7 +39,27 @@ def to_csv(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
                 for marc_field in marc_record.get_fields():
                     if marc_field.tag not in marc_tags:
                         marc_tags.append(marc_field.tag)
-                    csv_record[marc_field.tag] = marc_field.value()
+                    # deal with indicators, if applicable
+                    if include_indicator:
+                        indicator1 = (
+                            marc_field.indicator1
+                            if marc_field.indicator1 != " "
+                            else "\\"
+                        )
+                        indicator2 = (
+                            marc_field.indicator2
+                            if marc_field.indicator2 != " "
+                            else "\\"
+                        )
+                        if not indicator1:
+                            indicator1 = "\\"
+                        if not indicator2:
+                            indicator2 = "\\"
+                        csv_record[marc_field.tag] = (
+                            f"{indicator1}{indicator2}${marc_field.value()}"
+                        )
+                    else:
+                        csv_record[marc_field.tag] = marc_field.value()
                 csv_records.append(csv_record)
             elif isinstance(reader.current_exception, exc.FatalReaderError):
                 # data file format error
@@ -53,6 +82,34 @@ def to_csv(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
         file_writer = csv.DictWriter(f, marc_tags)
         file_writer.writeheader()
         file_writer.writerows(csv_records)
+
+
+def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
+    """
+    Function to convert csv file to marc file. Assumes that csv file has the format
+    output by to_csv above. Not yet tested.
+    """
+    with open(filepath, "r") as f:
+        reader = csv.DictReader(f)
+        for line in reader:
+            record = Record()
+            for tag in line.keys():
+                if tag.upper() == "LDR" or tag.lower() == "leader":
+                    record.leader = Leader(line[tag])
+                    continue
+                if "$" in line[tag]:
+                    indicators, field_text = line[tag].split("$", maxsplit=1)
+                    indicators = [char for char in indicators]
+                else:
+                    indicators, field_text = (["\\", "\\"], line[tag])
+                field = Field(
+                    tag=tag, indicators=Indicators(*indicators), data=field_text
+                )
+                record.add_field(field)
+
+                print(record.__str__())
+                with open(dest, "ab") as out:
+                    out.write(record.as_marc())
 
 
 if __name__ == "__main__":
@@ -82,13 +139,16 @@ if __name__ == "__main__":
         msg = "File must have mrc, marc, dat, or csv extension"
         raise ValueError(msg)
 
-    dest = filepath.parent / f"{filepath.name.split('.')[0]}.{ext}"
-
-    print(f"dest is {dest}")
     # first, handle marc to csv conversion
 
     if ext == "csv":
-        to_csv(filepath, dest)
+        dest = filepath.parent / f"{filepath.name.split('.')[0]}.{ext}"
+        print(f"dest is {dest}")
+        to_csv(filepath, dest, include_indicator=True)
+        sys.exit()
     # this refers to the extension for the file to write, i.e. to convert to
 
-    # now, handle csv to marc conversion
+    # now, handle csv to marc conversion: here, ext is marc, mrc, dat, etc.
+    dest = filepath.parent / f"{filepath.name.split('.')[0]}_fromCSV.{ext}"
+    print(f"dest is {dest}")
+    to_marc(filepath, dest)
