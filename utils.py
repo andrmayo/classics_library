@@ -73,8 +73,10 @@ def decode_64(encoded: str) -> Generator[str]:
             if j == 0 and bit == 1:
                 print("this is utf-8")
             # handle regular ASCII binary encodings
-            val += bit**(7-j)
+            if bit:
+                val += 2**(7-j)
         yield chr(val)
+        val = 0
 
 
 
