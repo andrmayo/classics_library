@@ -97,13 +97,18 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
                 if tag.upper() == "LDR" or tag.lower() == "leader":
                     record.leader = Leader(line[tag])
                     continue
-                if "$" in line[tag]:
+                if "$" in line[tag][:3]:
                     indicators, field_text = line[tag].split("$", maxsplit=1)
-                    indicators = [char for char in indicators]
+                    indicators = indicators.replace(" ", "\\")
+                    indicators = [char for char in indicators][:2]
                 else:
                     indicators, field_text = (["\\", "\\"], line[tag])
+                field_text = field_text.strip()
+                subfields = [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")] if field_text else []
                 field = Field(
-                    tag=tag, indicators=Indicators(*indicators), data=field_text
+                    tag=tag, 
+                    indicators=Indicators(*indicators), 
+                    subfields=subfields, 
                 )
                 record.add_field(field)
 
@@ -113,7 +118,7 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 0:
         msg = """
         "Please provide the filename or path of the marc or csv file you want to convert."
         """
