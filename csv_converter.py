@@ -14,10 +14,9 @@ from utils import decode_64
 
 
 def to_csv(
-    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=False
+    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True
 ) -> None:
     """function to convert marc file to csv file.
-    I am not sure how this will handle subfields.
     To include indicators in format <indicators>$<field>, pass include_indicator=True,
     this is mainly to facilitate converting back to marc format.
     """
@@ -56,10 +55,11 @@ def to_csv(
                         if not indicator2:
                             indicator2 = "\\"
                         csv_record[marc_field.tag] = (
-                            f"{indicator1}{indicator2}${marc_field.value()}"
+                            f"{indicator1}{indicator2}{' '.join([f'${s.code}{s.value}' for s in marc_field.subfields])}"
                         )
                     else:
-                        csv_record[marc_field.tag] = marc_field.value()
+                        csv_record[marc_field.tag] = " ".join([f"${s.code}{s.value}" for s in marc_field.subfields])
+                        
                 csv_records.append(csv_record)
             elif isinstance(reader.current_exception, exc.FatalReaderError):
                 # data file format error
