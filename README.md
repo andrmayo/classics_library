@@ -1,0 +1,16 @@
+# MARC processing for library catalogue transfer
+This code is mainly written for the specific job of cleaning up catalogue data for the library of the umich Classics Department 
+so that it can be transferred from [LibraryThing](https://www.librarything.com/home)
+to [Library World](https://www.libraryworld.com/?gad_source=1&gad_campaignid=246226816&gclid=CjwKCAjwuIbBBhBvEiwAsNypvV_slYhKaBxVixHdfyughsF8_c2PneMv10bIzrzCXemZOxYBYRd55RoCsfUQAvD_BwE)
+
+## Converting between marc and csv files
+The script `convert_csv.py` can be used from the CLI to convert between marc and csv formats. 
+If the file passed on the CLI has a `marc`, `mrc`, or `dat` extension, the script will try to convert it 
+to csv format. 
+If the file has a `csv` extension, it will instead be converted to marc format. 
+The csv files produced here should preserve all data, including leaders, indicators, and subfields, necessary to 
+convert back to marc format.
+
+I mainly wrote this to make it straightforward to handle the catalogue data with pandas.
+
+## MARC files with base64 encoding
