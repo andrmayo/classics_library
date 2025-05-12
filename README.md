@@ -1,7 +1,7 @@
 # MARC processing for library catalogue transfer
 This code is mainly written for the specific job of cleaning up catalogue data for the library of the umich Classics Department 
 so that it can be transferred from [LibraryThing](https://www.librarything.com/home)
-to [Library World](https://www.libraryworld.com/?gad_source=1&gad_campaignid=246226816&gclid=CjwKCAjwuIbBBhBvEiwAsNypvV_slYhKaBxVixHdfyughsF8_c2PneMv10bIzrzCXemZOxYBYRd55RoCsfUQAvD_BwE)
+to [Library World](https://www.libraryworld.com/?gad_source=1&gad_campaignid=246226816&gclid=CjwKCAjwuIbBBhBvEiwAsNypvV_slYhKaBxVixHdfyughsF8_c2PneMv10bIzrzCXemZOxYBYRd55RoCsfUQAvD_BwE).
 
 ## Converting between marc and csv files
 The script `convert_csv.py` can be used from the CLI to convert between marc and csv formats. 
@@ -14,3 +14,6 @@ convert back to marc format.
 I mainly wrote this to make it straightforward to handle the catalogue data with pandas.
 
 ## MARC files with base64 encoding
+
+## Test data
+A simple case, without complex subfield structures or base64 encoding, is the file `PGA-Australiana.csv` in this repo.
