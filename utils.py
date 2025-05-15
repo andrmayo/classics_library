@@ -22,9 +22,7 @@ def _char_to_64(encoding_char: str) -> Optional[int]:
 def _to_byte(of_64: Union[int, str]) -> list:
     if isinstance(of_64, str):
         of_64 = int(of_64)
-    assert of_64 < 64, (
-        f"input to _to_byte contains invalid base64 character: {of_64}"
-    )
+    assert of_64 < 64, f"input to _to_byte contains invalid base64 character: {of_64}"
     byte = [0, 0, 0, 0, 0, 0]
     if of_64 % 2 == 1:
         byte[5] = 1
@@ -40,6 +38,7 @@ def _to_byte(of_64: Union[int, str]) -> list:
         byte[0] = 1
     return byte
 
+
 def _eval_multibyte(encoding: list) -> int:
     "convert a binary encoding of any length to an integer value"
     val = 0
@@ -47,7 +46,7 @@ def _eval_multibyte(encoding: list) -> int:
     for bit in encoding:
         if bit:
             val += 2**exponent
-            exponent -= 1
+        exponent -= 1
     return val
 
 
@@ -71,19 +70,19 @@ def decode_64(encoded: str) -> Generator[str]:
         bytes.extend(byte)
     # discard any bits left over from taking groups of 8
     if len(bytes) % 8 != 0:
-        bytes = bytes[:len(bytes)-len(bytes)%8]
+        bytes = bytes[: len(bytes) - len(bytes) % 8]
     val = 0
     # TODO: test/debug that adding utf8 functionality hasn't broken code for ASCII, and works for utf8
-    block_len = 0 # keeps track of how many bytes encode a single utf8 char
-    utf8_block = [] # contains bits in a multibyte utf8 encoding
+    block_len = 0  # keeps track of how many bytes encode a single utf8 char
+    utf8_block = []  # contains bits in a multibyte utf8 encoding
     in_utf8_block = False
     for i in range(int(len(bytes) / 8)):
-        binary_byte = bytes[i*8: (i+1)*8]
-        utf8_instruct_byte = False # keeps track of whether current byte encodes how many bytes encode current char
+        binary_byte = bytes[i * 8 : (i + 1) * 8]
+        utf8_instruct_byte = False  # keeps track of whether current byte encodes how many bytes encode current char
         # handle case where currently in multibyte character encoding
         if in_utf8_block:
             for j, bit in enumerate(binary_byte):
-                if j == 0:
+                if j < 2:
                     continue
                 utf8_block.append(bit)
             block_len -= 1
@@ -92,7 +91,7 @@ def decode_64(encoded: str) -> Generator[str]:
                 yield chr(_eval_multibyte(utf8_block))
                 utf8_block = []
             continue
-        # now, handle case where we are not already in a multibyte character encoding. 
+        # now, handle case where we are not already in a multibyte character encoding.
         # this also handles the first byte of a multibyte encoding.
         for j, bit in enumerate(binary_byte):
             # first, check if this is the tail of the first byte in a multibyte utf8 encoding
@@ -101,22 +100,21 @@ def decode_64(encoded: str) -> Generator[str]:
                 continue
             # handle utf-8 binary encodings, which have 1 as first bit
             if j == 0 and bit == 1:
-                #this handles non-ASCII characters in utf-8
+                # this handles non-ASCII characters in utf-8
                 utf8_instruct_byte = True
                 continue
-            if bit: 
+            if bit:
                 # handle regular ASCII binary encodings
                 if not utf8_instruct_byte:
-                    val += 2**(7-j)
+                    val += 2 ** (7 - j)
                 # handle utf8 instructions for how many bytes encode char
                 else:
                     block_len += 1
-            elif utf8_instruct_byte: # exits from receiving utf8 instructions on encountering a 0 
+            elif (
+                utf8_instruct_byte
+            ):  # exits from receiving utf8 instructions on encountering a 0
                 utf8_instruct_byte = False
                 in_utf8_block = True
 
         yield chr(val)
         val = 0
-
-
-
