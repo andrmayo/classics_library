@@ -58,8 +58,10 @@ def to_csv(
                             f"{indicator1}{indicator2}{' '.join([f'${s.code}{s.value}' for s in marc_field.subfields])}"
                         )
                     else:
-                        csv_record[marc_field.tag] = " ".join([f"${s.code}{s.value}" for s in marc_field.subfields])
-                        
+                        csv_record[marc_field.tag] = " ".join(
+                            [f"${s.code}{s.value}" for s in marc_field.subfields]
+                        )
+
                 csv_records.append(csv_record)
             elif isinstance(reader.current_exception, exc.FatalReaderError):
                 # data file format error
@@ -97,6 +99,9 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
                 if tag.upper() == "LDR" or tag.lower() == "leader":
                     record.leader = Leader(line[tag])
                     continue
+                # some marc files use the unit separator with unicode value 31, control picture ␟,
+                # to mark beginning of a subfield, so first we replace this with $
+                line[tag] = line[tag].replace(chr(31), "$")
                 if "$" in line[tag][:3]:
                     indicators, field_text = line[tag].split("$", maxsplit=1)
                     indicators = indicators.replace(" ", "\\")
@@ -104,11 +109,15 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
                 else:
                     indicators, field_text = (["\\", "\\"], line[tag])
                 field_text = field_text.strip()
-                subfields = [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")] if field_text else []
+                subfields = (
+                    [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
+                    if field_text
+                    else []
+                )
                 field = Field(
-                    tag=tag, 
-                    indicators=Indicators(*indicators), 
-                    subfields=subfields, 
+                    tag=tag,
+                    indicators=Indicators(*indicators),
+                    subfields=subfields,
                 )
                 record.add_field(field)
 
