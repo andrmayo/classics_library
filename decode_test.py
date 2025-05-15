@@ -1,4 +1,4 @@
-from utils import decode_64
+from utils import decode_64, _eval_multibyte
 
 msg = """
     MDA4MzEgICAgIDIyMDAxOTMgaSA0NTAwMDAxMDAwOTAwMDAwMDAzMDAwNzAwMDA5MDA1MDAxNzAw
@@ -21,7 +21,15 @@ print("Testing with chunk of base64 from librarything marc file:")
 for char in decode_64(msg):
     print(char, end="")
 
+print("\nTesting utf8 decoding from binary. Desired string is 'hello':")
+bin_list = [int(char) for char in "01101000 01100101 01101100 01101100  01101111" if char in {"0", "1"}]
+for i in range(0, 5):
+    char = _eval_multibyte(bin_list[i*8: (i+1)*8])
+    print(chr(char), end="")
+
+
+
 msg = "zrHOu8+GzrEgYWxwaGE=" # encoding for "αλφα alpha"
-print("Testing with a chunck of base64 known to contain utf8 multibyte encodings")
+print("\nTesting with a chunck of base64 known to contain utf8 multibyte encodings, should decode to 'αλφα alpha'")
 for char in decode_64(msg):
     print(char, end="")
