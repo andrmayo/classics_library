@@ -17,6 +17,11 @@ msg = """
     YSAoTG9lYiBDbGFzc2ljYWwgTGlicmFyeSBOby4gMjg0KSBieSBNaW5vciBMYXRpbiBQb2V0cyAo
     MTkzNCkeICAfYUxvZWIeICAfYVlvdXIgbGlicmFyeR4d
 """
+print("Testing with chunk of base64 from librarything marc file:")
+for char in decode_64(msg):
+    print(char, end="")
 
+msg = "zrHOu8+GzrEgYWxwaGE=" # encoding for "αλφα alpha"
+print("Testing with a chunck of base64 known to contain utf8 multibyte encodings")
 for char in decode_64(msg):
     print(char, end="")
