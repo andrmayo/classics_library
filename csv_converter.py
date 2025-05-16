@@ -10,7 +10,7 @@ from pymarc import exceptions as exc
 from pymarc import Record, Field, Subfield, Indicators, Leader
 
 
-from utils import decode_64
+from utils import flatten_mixed_marc
 
 
 def to_csv(
@@ -20,6 +20,9 @@ def to_csv(
     To include indicators in format <indicators>$<field>, pass include_indicator=True,
     this is mainly to facilitate converting back to marc format.
     """
+
+    # create and get name of new file with all base64 converted to regular utf8
+    filepath = flatten_mixed_marc(filepath)
     with open(filepath, "rb") as f:
         reader = MARCReader(f)
 

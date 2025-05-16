@@ -124,13 +124,14 @@ def decode_64(encoded: str) -> Generator[str]:
 
 def _check_base64(line: str) -> Tuple[bool, int, int]:
     "This detects first line in base64 in marc file."
-    if "MDA" not in line:
+    if "MDA" not in line and "MDE" not in line:
         return False, -1, -1
-    match = re.search(r"(\n|\x1c|\x1d|\x1e\x1f)MDA", line)
+    match = re.search(r"(\n|\x1c|\x1d|\x1e\x1f)MD[AE]", line)
     if not match:
-        match = re.search(r"^MDA", line)
+        match = re.search(r"^MD", line)
     if match:
         start, end = match.span()
+        start = start + 1  # we don't want index of record delimiter
         return True, start, end
     return False, -1, -1
 
