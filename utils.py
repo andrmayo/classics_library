@@ -1,5 +1,7 @@
 from collections.abc import Generator
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
+from pathlib import Path
+import re
 
 
 def _char_to_64(encoding_char: str) -> Optional[int]:
@@ -118,3 +120,58 @@ def decode_64(encoded: str) -> Generator[str]:
 
         yield chr(val)
         val = 0
+
+
+def _check_base64(line: str) -> Tuple[bool, int, int]:
+    "This detects first line in base64 in marc file."
+    if "MDA" not in line:
+        return False, -1, -1
+    match = re.search(r"(\n|\x1c|\x1d|\x1e\x1f)MDA", line)
+    if not match:
+        match = re.search(r"^MDA", line)
+    if match:
+        start, end = match.span()
+        return True, start, end
+    return False, -1, -1
+
+
+def _handle_base64(line: str, lines: list, base64_buffer: str) -> bool:
+    is_match, start, _ = _check_base64(line)
+    if not is_match:
+        lines.append(line)
+        return False
+    # base64 encoding sometimes continues on same line as regular utf8 record
+    if start > 0:
+        lines.append(line[:start])
+    # assume first line of base64 encoding section never has regular utf8 after base64.
+    base64_buffer += line[start:].strip()
+    return True
+
+
+# more elegant would be to do this the intended way for the marc format,
+# namely by reading the number of bytes in the record from the start of the record,
+# but this was easier.
+def flatten_mixed_marc(filename: Union[Path, str]) -> None:
+    """Take path to marc file containing mix of regular utf8 and base64 utf8,
+    and rewrites it to only include regular utf8, i.e. binary encodings of
+    the final characters themselves in utf8. This relies on
+    base64 encoding strings beginning with MDA and plain utf8 strsing beginning with 00###.
+    """
+    if isinstance(filename, str):
+        filename = Path(filename)
+    if not filename.exists():
+        raise FileNotFoundError(f"File {filename} not found.")
+    lines = []
+    base64_buffer = ""
+    with open(filename, "r") as f:
+        in_base64 = False
+        for line in f:
+            if not in_base64:
+                in_base64 = _handle_base64(line, lines, base64_buffer)
+                continue
+                # base64 encoding sometimes continues on same line as regular utf8 record
+            # assume regular utf8 record after base64 starts on new line
+            if re.search(r"^00\d\d\d", line):
+                lines.append("".join([char for char in decode_64(base64_buffer)]))
+                base64_buffer = ""
+                in_base64 = _handle_base64(line, lines, base64_buffer)

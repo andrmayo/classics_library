@@ -51,3 +51,4 @@ print(
 )
 for char in decode_64(msg):
     print(char, end="")
+print("\n")
