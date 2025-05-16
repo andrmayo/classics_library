@@ -151,7 +151,7 @@ def _handle_base64(line: str, lines: list, base64_buffer: str) -> bool:
 # more elegant would be to do this the intended way for the marc format,
 # namely by reading the number of bytes in the record from the start of the record,
 # but this was easier.
-def flatten_mixed_marc(filename: Union[Path, str]) -> None:
+def flatten_mixed_marc(filename: Union[Path, str]) -> Path:
     """Take path to marc file containing mix of regular utf8 and base64 utf8,
     and rewrites it to only include regular utf8, i.e. binary encodings of
     the final characters themselves in utf8. This relies on
@@ -175,3 +175,14 @@ def flatten_mixed_marc(filename: Union[Path, str]) -> None:
                 lines.append("".join([char for char in decode_64(base64_buffer)]))
                 base64_buffer = ""
                 in_base64 = _handle_base64(line, lines, base64_buffer)
+    count = 0
+    with open(f"flattened_{filename}", "w") as f:
+        for line in lines:
+            count += 1
+            f.write(line)
+    msg = f"""
+        Converted base64 in marc file {filename} to standard utf8
+        and wrote {count} lines to flattened_{filename}.
+    """
+    print(msg)
+    return Path(f"flattened_{filename}")
