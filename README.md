@@ -25,6 +25,6 @@ A simple case, without complex subfield structures or base64 encoding, is the fi
 
 The export to marc option in LibraryThing purports to use utf8 encodings
 exclusively. This does not always seems to be the case, however.
-When I export to marc on my linux system, it seems to use a MacRoman encoding,
-which can be converted to utf-8 with `iconv -f macintosh -t UTF-8 < librarything_UMClassics.marc > librarything_UMClassics.marc`.
+When I export to marc, it seems to use a LATIN1 encoding,
+which can be converted to utf-8 with `iconv -f LATIN1 -t UTF-8 < librarything_UMClassics.marc > librarything_UMClassics_utf8.marc`.
 I am not sure if this is consistently how it behaves.
