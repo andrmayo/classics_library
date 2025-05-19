@@ -131,11 +131,15 @@ def _check_base64(line: str) -> Tuple[bool, int, int]:
     if "MDA" not in line and "MDE" not in line:
         return False, -1, -1
     match = re.search(r"(\n|\x1c|\x1d|\x1e\x1f)MD[AE]", line)
-    if not match:
-        match = re.search(r"^MD", line)
     if match:
         start, end = match.span()
         start = start + 1  # we don't want index of record delimiter
+    else:
+        match = re.search(r"^MD", line)
+        if match:
+            start, end = match.span()
+    if match:
+        start, end = match.span()
         return True, start, end
     return False, -1, -1
 
@@ -147,14 +151,14 @@ def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
         return False
     # base64 encoding sometimes continues on same line as regular utf8 record
     if start > 0:
-        lines.append(line[:start].strip(" "))
+        lines.append(line[:start])
     # assume first line of base64 encoding section never has regular utf8 after base64.
     base64_buffer.append(line[start:])
     return True
 
 
 def _normalize_record_spacing(records: str) -> str:
-    records = records.replace("\n", "").strip(" ")
+    records = records.replace("\n", "")
     pattern = r"(\x1e\x1d)(\s|\n)*(\d+)"
     records = re.sub(pattern, r"\1\3", records)
     return records
@@ -185,7 +189,6 @@ def _clean_controls(records: str) -> str:
     records = re.sub(pattern, "\1", records)
     return records
 
-
 # more elegant would be to do this the intended way for the marc format,
 # namely by reading the number of bytes in the record from the start of the record,
 # but this was easier.
@@ -203,6 +206,7 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
     base64_buffer = []
     with open(str(filename), "r", encoding=encoding) as f:
         in_base64 = False
+        base64_segment = ""
         for line in f:
             if not in_base64:
                 in_base64 = _handle_base64(line, lines, base64_buffer)
@@ -213,17 +217,20 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
                 start, _ = match.span()
                 if start > 0:
                     base64_buffer.append(line[:start])
-                base64_segment = "".join(base64_buffer)
-                lines.append("".join([char for char in decode_64(base64_segment)]))
-                del base64_segment
+                for line_64 in base64_buffer:
+                    base64_segment = "".join([char for char in decode_64(line_64.strip())])
+                    lines.append(base64_segment)
+                    print(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
                 continue
-            base64_buffer.append(line.strip())
+            base64_buffer.append(line)
         # deal with anything left over in base64_buffer
-        base64_segment = "".join(base64_buffer)
-        lines.append("".join([char for char in decode_64(base64_segment)]))
-        del base64_segment, base64_buffer
+        for line_64 in base64_buffer:
+            base64_segment = "".join([char for char in decode_64(line_64.strip())])
+            print(base64_segment)
+            lines.append(base64_segment)
+        del base64_buffer, base64_segment
     count = 0
     for i, line in enumerate(lines):
         lines[i] = _normalize_record_spacing(line)
