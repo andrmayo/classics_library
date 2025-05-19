@@ -147,10 +147,17 @@ def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
         return False
     # base64 encoding sometimes continues on same line as regular utf8 record
     if start > 0:
-        lines.append(line[:start])
+        lines.append(line[:start].strip(" "))
     # assume first line of base64 encoding section never has regular utf8 after base64.
     base64_buffer.append(line[start:].strip())
     return True
+
+
+def _normalize_record_spacing(records: str) -> str:
+    records = records.replace("\n", "").strip(" ")
+    pattern = r"(\x1e\x1d)(\s|\n)*(\d+)"
+    records = re.sub(pattern, r"\1\3", records)
+    return records
 
 
 # more elegant would be to do this the intended way for the marc format,
@@ -192,6 +199,8 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
         lines.append("".join([char for char in decode_64(base64_segment)]))
         del base64_segment, base64_buffer
     count = 0
+    for i, line in enumerate(lines):
+        lines[i] = _normalize_record_spacing(line)
     with open(f"flattened_{filename}", "w", encoding="utf8") as f:
         for line in lines:
             count += 1
@@ -250,6 +259,10 @@ def separate_mixed_marc(
         enc_name = "LATIN1"
     else:
         enc_name = encoding
+
+    for i, line in enumerate(lines):
+        lines[i] = _normalize_record_spacing(line)
+
     count = 0
     with open(f"{enc_name}_{filename}", "w", encoding=encoding) as f:
         for line in lines:
@@ -260,6 +273,9 @@ def separate_mixed_marc(
         in encoding format {encoding}.
     """
     print(msg)
+
+    for i, line in enumerate(base64_lines):
+        lines[i] = _normalize_record_spacing(line)
 
     count = 0
     with open(f"UTF8_{filename}", "w", encoding="utf8") as f:
