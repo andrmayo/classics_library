@@ -16,7 +16,11 @@ def _char_to_64(encoding_char: str) -> Optional[int]:
         of_64 = ord(encoding_char) + 4
     elif encoding_char == "+":
         of_64 = 62
+    elif encoding_char == "-":
+        of_64 = 62
     elif encoding_char == "/":
+        of_64 = 63
+    elif encoding_char == "_":
         of_64 = 63
     return of_64
 
@@ -136,7 +140,7 @@ def _check_base64(line: str) -> Tuple[bool, int, int]:
     return False, -1, -1
 
 
-def _handle_base64(line: str, lines: list, base64_buffer: str) -> bool:
+def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
     is_match, start, _ = _check_base64(line)
     if not is_match:
         lines.append(line)
@@ -145,14 +149,14 @@ def _handle_base64(line: str, lines: list, base64_buffer: str) -> bool:
     if start > 0:
         lines.append(line[:start])
     # assume first line of base64 encoding section never has regular utf8 after base64.
-    base64_buffer += line[start:].strip()
+    base64_buffer.append(line[start:].strip())
     return True
 
 
 # more elegant would be to do this the intended way for the marc format,
 # namely by reading the number of bytes in the record from the start of the record,
 # but this was easier.
-def flatten_mixed_marc(filename: Union[Path, str]) -> Path:
+def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
     """Take path to marc file containing mix of regular utf8 and base64 utf8,
     and rewrites it to only include regular utf8, i.e. binary encodings of
     the final characters themselves in utf8. This relies on
@@ -163,21 +167,32 @@ def flatten_mixed_marc(filename: Union[Path, str]) -> Path:
     if not filename.exists():
         raise FileNotFoundError(f"File {filename} not found.")
     lines = []
-    base64_buffer = ""
-    with open(filename, "r") as f:
+    base64_buffer = []
+    with open(str(filename), "r", encoding=encoding) as f:
         in_base64 = False
         for line in f:
             if not in_base64:
                 in_base64 = _handle_base64(line, lines, base64_buffer)
                 continue
                 # base64 encoding sometimes continues on same line as regular utf8 record
-            # assume regular utf8 record after base64 starts on new line
-            if re.search(r"^00\d\d\d", line):
-                lines.append("".join([char for char in decode_64(base64_buffer)]))
-                base64_buffer = ""
-                in_base64 = _handle_base64(line, lines, base64_buffer)
+            match = re.search(r"\d\d\d\d\d\s+\d", line)
+            if match:
+                start, _ = match.span()
+                if start > 0:
+                    base64_buffer.append(line[:start])
+                base64_segment = "".join(base64_buffer)
+                lines.append("".join([char for char in decode_64(base64_segment)]))
+                del base64_segment
+                base64_buffer = []
+                in_base64 = _handle_base64(line[start:], lines, base64_buffer)
+                continue
+            base64_buffer.append(line.strip())
+        # deal with anything left over in base64_buffer
+        base64_segment = "".join(base64_buffer)
+        lines.append("".join([char for char in decode_64(base64_segment)]))
+        del base64_segment, base64_buffer
     count = 0
-    with open(f"flattened_{filename}", "w") as f:
+    with open(f"flattened_{filename}", "w", encoding="utf8") as f:
         for line in lines:
             count += 1
             f.write(line)
@@ -187,3 +202,73 @@ def flatten_mixed_marc(filename: Union[Path, str]) -> Path:
     """
     print(msg)
     return Path(f"flattened_{filename}")
+
+
+# default encoding here is ISO-8859-1, since that's what the marc exports from librarything are
+# encoded in, even though base64 sections must be mapped to utf8.
+def separate_mixed_marc(
+    filename: Union[Path, str], encoding="ISO-8859-1"
+) -> Tuple[Path, Path]:
+    """Take path to marc file containing mix of regular utf8 and base64 utf8,
+    and rewrites it to only include regular utf8, i.e. binary encodings of
+    the final characters themselves in utf8. This relies on
+    base64 encoding strings beginning with MDA and plain utf8 strsing beginning with 00###.
+    """
+    if isinstance(filename, str):
+        filename = Path(filename)
+    if not filename.exists():
+        raise FileNotFoundError(f"File {filename} not found.")
+    lines = []
+    base64_lines = []
+    base64_buffer = []
+    with open(str(filename), "r", encoding=encoding) as f:
+        in_base64 = False
+        for line in f:
+            if not in_base64:
+                in_base64 = _handle_base64(line, lines, base64_buffer)
+                continue
+                # base64 encoding sometimes continues on same line as regular utf8 record
+            match = re.search(r"\d\d\d\d\d\s+\d", line)
+            if match:
+                start, _ = match.span()
+                if start > 0:
+                    base64_buffer.append(line[:start])
+                base64_segment = "".join(base64_buffer)
+                base64_lines.append(
+                    "".join([char for char in decode_64(base64_segment)])
+                )
+                del base64_segment
+                base64_buffer = []
+                in_base64 = _handle_base64(line[start:], lines, base64_buffer)
+                continue
+            base64_buffer.append(line.strip())
+        # deal with anything left over in base64_buffer
+        base64_segment = "".join(base64_buffer)
+        base64_lines.append("".join([char for char in decode_64(base64_segment)]))
+        del base64_segment, base64_buffer
+    if encoding == "ISO-8859-1":
+        enc_name = "LATIN1"
+    else:
+        enc_name = encoding
+    count = 0
+    with open(f"{enc_name}_{filename}", "w", encoding=encoding) as f:
+        for line in lines:
+            count += len(line)
+            f.write(line)
+    msg = f"""
+        from {filename} wrote {enc_name}_{filename} with {count} characters 
+        in encoding format {encoding}.
+    """
+    print(msg)
+
+    count = 0
+    with open(f"UTF8_{filename}", "w", encoding="utf8") as f:
+        for line in base64_lines:
+            count += len(line)
+            f.write(line)
+    msg = f"""
+        from {filename} wrote UTF8_{filename} with {count} characters 
+        in encoding format UTF8.
+    """
+    print(msg)
+    return Path(f"{enc_name}_{filename}"), Path(f"UTF8_{filename}")
