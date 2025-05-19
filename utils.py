@@ -220,7 +220,6 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
                 for line_64 in base64_buffer:
                     base64_segment = "".join([char for char in decode_64(line_64.strip())])
                     lines.append(base64_segment)
-                    print(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
                 continue
@@ -228,7 +227,6 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
         # deal with anything left over in base64_buffer
         for line_64 in base64_buffer:
             base64_segment = "".join([char for char in decode_64(line_64.strip())])
-            print(base64_segment)
             lines.append(base64_segment)
         del base64_buffer, base64_segment
     count = 0
@@ -265,6 +263,7 @@ def separate_mixed_marc(
     base64_buffer = []
     with open(str(filename), "r", encoding=encoding) as f:
         in_base64 = False
+        base64_segment = ""
         for line in f:
             if not in_base64:
                 in_base64 = _handle_base64(line, lines, base64_buffer)
@@ -275,18 +274,17 @@ def separate_mixed_marc(
                 start, _ = match.span()
                 if start > 0:
                     base64_buffer.append(line[:start])
-                base64_segment = "".join(base64_buffer)
-                base64_lines.append(
-                    "".join([char for char in decode_64(base64_segment)])
-                )
-                del base64_segment
+                for line_64 in base64_buffer:
+                    base64_segment = "".join([char for char in decode_64(line_64.strip())])
+                    base64_lines.append(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
                 continue
-            base64_buffer.append(line.strip())
+            base64_buffer.append(line)
         # deal with anything left over in base64_buffer
-        base64_segment = "".join(base64_buffer)
-        base64_lines.append("".join([char for char in decode_64(base64_segment)]))
+        for line_64 in base64_buffer:
+            base64_segment = "".join([char for char in decode_64(line_64.strip())])
+            base64_lines.append(base64_segment)
         del base64_segment, base64_buffer
     if encoding == "ISO-8859-1":
         enc_name = "LATIN1"
