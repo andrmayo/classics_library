@@ -149,7 +149,7 @@ def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
     if start > 0:
         lines.append(line[:start].strip(" "))
     # assume first line of base64 encoding section never has regular utf8 after base64.
-    base64_buffer.append(line[start:].strip())
+    base64_buffer.append(line[start:])
     return True
 
 
