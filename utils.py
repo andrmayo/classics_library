@@ -160,6 +160,32 @@ def _normalize_record_spacing(records: str) -> str:
     return records
 
 
+def _clean_controls(records: str) -> str:
+    """deal with unnecessary control characters
+    and some related issues."""
+    controls = []
+    for i in range(28):
+        controls.append(chr(i))
+    for control in controls:
+        records = records.replace(control, "")
+    pattern = r"(\x1e\x1d)\D*$"
+    records = re.sub(pattern, r"\1", records)
+    pattern = r"(\x1e\x1d)\S*$"
+    records = re.sub(pattern, r"\1", records)
+    pattern = r"(\x1e\x1d).*?(\d\d\d\d\d )"
+    records = re.sub(pattern, r"\1\2", records)
+    pattern = r"(\x1e\x1d)\S*?##"
+    records = re.sub(pattern, r"\1", records)
+    # some records have 'CR<LDR>, which causes issues
+    pattern = r"CR(\d\d\d\d\d )"
+    records = re.sub(pattern, r"\1", records)
+    pattern = r"CR$"
+    records = re.sub(pattern, "", records)
+    pattern = r"^.(\d\d\d\d\d\s)"
+    records = re.sub(pattern, "\1", records)
+    return records
+
+
 # more elegant would be to do this the intended way for the marc format,
 # namely by reading the number of bytes in the record from the start of the record,
 # but this was easier.
@@ -274,13 +300,12 @@ def separate_mixed_marc(
     """
     print(msg)
 
-    for i, line in enumerate(base64_lines):
-        lines[i] = _normalize_record_spacing(line)
-
     count = 0
     with open(f"UTF8_{filename}", "w", encoding="utf8") as f:
         for line in base64_lines:
             count += len(line)
+            line = _normalize_record_spacing(line)
+            line = _clean_controls(line)
             f.write(line)
     msg = f"""
         from {filename} wrote UTF8_{filename} with {count} characters 
