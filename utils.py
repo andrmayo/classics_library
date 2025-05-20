@@ -167,7 +167,7 @@ def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
 
 
 def _normalize_record_spacing(records: str) -> str:
-    records = records.replace("\n", "")
+    # records = records.replace("\n", "")
     pattern = r"(\x1e\x1d)(\s|\n)*(\d+)"
     records = re.sub(pattern, r"\1\3", records)
     return records
@@ -292,9 +292,7 @@ def separate_mixed_marc(
                     base64_buffer.append(line[:start])
                 base64_records = _get_records_64(base64_buffer)
                 for line_64 in base64_records:
-                    base64_segment = "".join(
-                        [char for char in decode_64(line_64.strip())]
-                    )
+                    base64_segment = "".join([char for char in decode_64(line_64)])
                     base64_lines.append(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
