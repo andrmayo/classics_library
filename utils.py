@@ -84,6 +84,8 @@ def decode_64(encoded: str) -> Generator[str]:
     in_utf8_block = False
     for i in range(int(len(bytes) / 8)):
         binary_byte = bytes[i * 8 : (i + 1) * 8]
+        if binary_byte == [1, 0, 0, 0, 0, 0, 0, 0]:  # skip invalid UTF8 byte
+            continue
         utf8_instruct_byte = False  # keeps track of whether current byte encodes how many bytes encode current char
         # handle case where currently in multibyte character encoding
         if in_utf8_block:
@@ -189,6 +191,7 @@ def _clean_controls(records: str) -> str:
     records = re.sub(pattern, "\1", records)
     return records
 
+
 # more elegant would be to do this the intended way for the marc format,
 # namely by reading the number of bytes in the record from the start of the record,
 # but this was easier.
@@ -218,7 +221,9 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
                 if start > 0:
                     base64_buffer.append(line[:start])
                 for line_64 in base64_buffer:
-                    base64_segment = "".join([char for char in decode_64(line_64.strip())])
+                    base64_segment = "".join(
+                        [char for char in decode_64(line_64.strip())]
+                    )
                     lines.append(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
@@ -227,14 +232,23 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
         # deal with anything left over in base64_buffer
         for line_64 in base64_buffer:
             base64_segment = "".join([char for char in decode_64(line_64.strip())])
+            print(base64_segment)
             lines.append(base64_segment)
         del base64_buffer, base64_segment
     count = 0
     for i, line in enumerate(lines):
         lines[i] = _normalize_record_spacing(line)
+        # deal with random null characters
+        lines[i] = line.replace("\x00", "")
     with open(f"flattened_{filename}", "w", encoding="utf8") as f:
-        for line in lines:
+        final_i = len(lines) - 1
+        for i, line in enumerate(lines):
             count += 1
+            # deal with the fact that having the control sequence \x1e\x1d
+            # at the end of file causes issues
+            if i == final_i:
+                pattern = r"\x1e\x1d$"
+                line = re.sub(pattern, "\x1e", line)
             f.write(line)
     msg = f"""
         Converted base64 in marc file {filename} to standard utf8
@@ -275,7 +289,9 @@ def separate_mixed_marc(
                 if start > 0:
                     base64_buffer.append(line[:start])
                 for line_64 in base64_buffer:
-                    base64_segment = "".join([char for char in decode_64(line_64.strip())])
+                    base64_segment = "".join(
+                        [char for char in decode_64(line_64.strip())]
+                    )
                     base64_lines.append(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
@@ -307,10 +323,17 @@ def separate_mixed_marc(
 
     count = 0
     with open(f"UTF8_{filename}", "w", encoding="utf8") as f:
-        for line in base64_lines:
+        final_i = len(base64_lines) - 1
+        for i, line in enumerate(base64_lines):
             count += len(line)
             line = _normalize_record_spacing(line)
-            line = _clean_controls(line)
+            # deal with random null characters
+            line = line.replace("\x00", "")
+            # deal with the fact that having the control sequence \x1e\x1d
+            # at the end of file causes issues
+            if i == final_i:
+                pattern = r"\x1e\x1d$"
+                line = re.sub(pattern, "\x1e", line)
             f.write(line)
     msg = f"""
         from {filename} wrote UTF8_{filename} with {count} characters 
