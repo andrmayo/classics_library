@@ -84,8 +84,12 @@ def decode_64(encoded: str) -> Generator[str]:
     in_utf8_block = False
     for i in range(int(len(bytes) / 8)):
         binary_byte = bytes[i * 8 : (i + 1) * 8]
-        if binary_byte == [1, 0, 0, 0, 0, 0, 0, 0]:  # skip invalid UTF8 byte
+        invalid_standalone = [1, 0, 0, 0, 0, 0, 0, 0]
+        if (
+            not in_utf8_block and binary_byte == invalid_standalone
+        ):  # skip invalid UTF8 byte
             continue
+
         utf8_instruct_byte = False  # keeps track of whether current byte encodes how many bytes encode current char
         # handle case where currently in multibyte character encoding
         if in_utf8_block:
@@ -123,8 +127,9 @@ def decode_64(encoded: str) -> Generator[str]:
             ):  # exits from receiving utf8 instructions on encountering a 0
                 utf8_instruct_byte = False
                 in_utf8_block = True
-
-        yield chr(val)
+        if not in_utf8_block:
+            print(val)
+            yield chr(val)
         val = 0
 
 
