@@ -3,6 +3,9 @@ from typing import Optional, Union, Tuple
 from pathlib import Path
 import re
 
+# regex pattern for finding start of marc recordr"\d{5}(\s|[A-Za-z]){3}[A-Za-z\s#]{2}[012]"
+RECORD_START = r"^\d{5}(\s|[A-Za-z]){3}[A-Za-z\s#]{2}[012]"
+
 
 def _char_to_64(encoding_char: str) -> Optional[int]:
     "helper function for decode_64."
@@ -128,7 +131,6 @@ def decode_64(encoded: str) -> Generator[str]:
                 utf8_instruct_byte = False
                 in_utf8_block = True
         if not in_utf8_block:
-            print(val)
             yield chr(val)
         val = 0
 
@@ -171,30 +173,25 @@ def _normalize_record_spacing(records: str) -> str:
     return records
 
 
-def _clean_controls(records: str) -> str:
-    """deal with unnecessary control characters
-    and some related issues."""
-    controls = []
-    for i in range(28):
-        controls.append(chr(i))
-    for control in controls:
-        records = records.replace(control, "")
-    pattern = r"(\x1e\x1d)\D*$"
-    records = re.sub(pattern, r"\1", records)
-    pattern = r"(\x1e\x1d)\S*$"
-    records = re.sub(pattern, r"\1", records)
-    pattern = r"(\x1e\x1d).*?(\d\d\d\d\d )"
-    records = re.sub(pattern, r"\1\2", records)
-    pattern = r"(\x1e\x1d)\S*?##"
-    records = re.sub(pattern, r"\1", records)
-    # some records have 'CR<LDR>, which causes issues
-    pattern = r"CR(\d\d\d\d\d )"
-    records = re.sub(pattern, r"\1", records)
-    pattern = r"CR$"
-    records = re.sub(pattern, "", records)
-    pattern = r"^.(\d\d\d\d\d\s)"
-    records = re.sub(pattern, "\1", records)
-    return records
+def _get_records_64(records: list[str]) -> list[str]:
+    """Function to take in a list of lines in base64 read from a marc file
+    and return a new list in which each item is a string encoding a single records.
+    This assumes a new record will always start on a new line/element."""
+    # take first 18 characters of line, and decode
+    by_record = []
+    cur_buffer = []
+    for line in records:
+        line = line.strip()
+        incipit = line[:18]
+        incipit = "".join([char for char in decode_64(incipit)])
+        if re.search(RECORD_START, incipit):
+            by_record.append("".join(cur_buffer))
+            cur_buffer = [line]
+        else:
+            cur_buffer.append(line)
+    # deal with leftovers in cur_buffer
+    by_record.append("".join(cur_buffer))
+    return by_record
 
 
 # more elegant would be to do this the intended way for the marc format,
@@ -215,31 +212,31 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
     with open(str(filename), "r", encoding=encoding) as f:
         in_base64 = False
         base64_segment = ""
+        base64_records = []
         for line in f:
             if not in_base64:
                 in_base64 = _handle_base64(line, lines, base64_buffer)
                 continue
                 # base64 encoding sometimes continues on same line as regular utf8 record
-            match = re.search(r"\d\d\d\d\d\s+\d", line)
+            match = re.search(RECORD_START, line)
             if match:
                 start, _ = match.span()
                 if start > 0:
                     base64_buffer.append(line[:start])
-                for line_64 in base64_buffer:
-                    base64_segment = "".join(
-                        [char for char in decode_64(line_64.strip())]
-                    )
+                base64_records = _get_records_64(base64_buffer)
+                for line_64 in base64_records:
+                    base64_segment = "".join([char for char in decode_64(line_64)])
                     lines.append(base64_segment)
                 base64_buffer = []
                 in_base64 = _handle_base64(line[start:], lines, base64_buffer)
                 continue
             base64_buffer.append(line)
         # deal with anything left over in base64_buffer
-        for line_64 in base64_buffer:
-            base64_segment = "".join([char for char in decode_64(line_64.strip())])
-            print(base64_segment)
+        base64_records = _get_records_64(base64_buffer)
+        for line_64 in base64_records:
+            base64_segment = "".join([char for char in decode_64(line_64)])
             lines.append(base64_segment)
-        del base64_buffer, base64_segment
+        del base64_buffer, base64_segment, base64_records
     count = 0
     for i, line in enumerate(lines):
         lines[i] = _normalize_record_spacing(line)
@@ -288,12 +285,13 @@ def separate_mixed_marc(
                 in_base64 = _handle_base64(line, lines, base64_buffer)
                 continue
                 # base64 encoding sometimes continues on same line as regular utf8 record
-            match = re.search(r"\d\d\d\d\d\s+\d", line)
+            match = re.search(RECORD_START, line)
             if match:
                 start, _ = match.span()
                 if start > 0:
                     base64_buffer.append(line[:start])
-                for line_64 in base64_buffer:
+                base64_records = _get_records_64(base64_buffer)
+                for line_64 in base64_records:
                     base64_segment = "".join(
                         [char for char in decode_64(line_64.strip())]
                     )
@@ -303,10 +301,11 @@ def separate_mixed_marc(
                 continue
             base64_buffer.append(line)
         # deal with anything left over in base64_buffer
-        for line_64 in base64_buffer:
-            base64_segment = "".join([char for char in decode_64(line_64.strip())])
+        base64_records = _get_records_64(base64_buffer)
+        for line_64 in base64_records:
+            base64_segment = "".join([char for char in decode_64(line_64)])
             base64_lines.append(base64_segment)
-        del base64_segment, base64_buffer
+        del base64_segment, base64_buffer, base64_records
     if encoding == "ISO-8859-1":
         enc_name = "LATIN1"
     else:
