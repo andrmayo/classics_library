@@ -167,7 +167,7 @@ def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
 
 
 def _normalize_record_spacing(records: str) -> str:
-    # records = records.replace("\n", "")
+    records = records.replace("\n", " ")
     pattern = r"(\x1e\x1d)(\s|\n)*(\d+)"
     records = re.sub(pattern, r"\1\3", records)
     return records
@@ -243,14 +243,8 @@ def flatten_mixed_marc(filename: Union[Path, str], encoding="utf8") -> Path:
         # deal with random null characters
         lines[i] = line.replace("\x00", "")
     with open(f"flattened_{filename}", "w", encoding="utf8") as f:
-        final_i = len(lines) - 1
-        for i, line in enumerate(lines):
+        for line in lines:
             count += 1
-            # deal with the fact that having the control sequence \x1e\x1d
-            # at the end of file causes issues
-            if i == final_i:
-                pattern = r"\x1e\x1d$"
-                line = re.sub(pattern, "\x1e", line)
             f.write(line)
     msg = f"""
         Converted base64 in marc file {filename} to standard utf8
@@ -325,17 +319,12 @@ def separate_mixed_marc(
 
     count = 0
     with open(f"UTF8_{filename}", "w", encoding="utf8") as f:
-        final_i = len(base64_lines) - 1
-        for i, line in enumerate(base64_lines):
+        for line in base64_lines:
             count += len(line)
             line = _normalize_record_spacing(line)
             # deal with random null characters
             line = line.replace("\x00", "")
-            # deal with the fact that having the control sequence \x1e\x1d
-            # at the end of file causes issues
-            if i == final_i:
-                pattern = r"\x1e\x1d$"
-                line = re.sub(pattern, "\x1e", line)
+            line = line.strip("\n")
             f.write(line)
     msg = f"""
         from {filename} wrote UTF8_{filename} with {count} characters 

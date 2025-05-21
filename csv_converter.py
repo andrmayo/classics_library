@@ -14,7 +14,10 @@ from utils import flatten_mixed_marc
 
 
 def to_csv(
-    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True
+    filepath: Union[str, Path],
+    dest: Union[str, Path],
+    encoding="utf8",
+    include_indicator=True,
 ) -> None:
     """function to convert marc file to csv file.
     To include indicators in format <indicators>$<field>, pass include_indicator=True,
@@ -22,7 +25,6 @@ def to_csv(
     """
 
     # create and get name of new file with all base64 converted to regular utf8
-    filepath = flatten_mixed_marc(filepath)
     with open(filepath, "rb") as f:
         reader = MARCReader(f)
 
