@@ -10,14 +10,8 @@ from pymarc import exceptions as exc
 from pymarc import Record, Field, Subfield, Indicators, Leader
 
 
-from utils import flatten_mixed_marc
-
-
 def to_csv(
-    filepath: Union[str, Path],
-    dest: Union[str, Path],
-    encoding="utf8",
-    include_indicator=True,
+    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True
 ) -> None:
     """function to convert marc file to csv file.
     To include indicators in format <indicators>$<field>, pass include_indicator=True,
@@ -26,7 +20,7 @@ def to_csv(
 
     # create and get name of new file with all base64 converted to regular utf8
     with open(filepath, "rb") as f:
-        reader = MARCReader(f)
+        reader = MARCReader(f, to_unicode=True)
 
         csv_records = []
         # every entry should have a leader as first line,

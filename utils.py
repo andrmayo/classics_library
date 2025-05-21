@@ -158,6 +158,7 @@ def _handle_base64(line: str, lines: list, base64_buffer: list) -> bool:
     if not is_match:
         lines.append(line)
         return False
+    start += 1
     # base64 encoding sometimes continues on same line as regular utf8 record
     if start > 0:
         lines.append(line[:start])
@@ -303,12 +304,10 @@ def separate_mixed_marc(
     else:
         enc_name = encoding
 
-    for i, line in enumerate(lines):
-        lines[i] = _normalize_record_spacing(line)
-
     count = 0
     with open(f"{enc_name}_{filename}", "w", encoding=encoding) as f:
         for line in lines:
+            line = _normalize_record_spacing(line)
             count += len(line)
             f.write(line)
     msg = f"""
