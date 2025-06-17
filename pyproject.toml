@@ -1,7 +1,7 @@
 [project]
 name = "classics-library"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python modules and scripts for processing marc files using pymarc"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
