@@ -106,27 +106,33 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
             for tag in line.keys():
                 if tag.upper() == "LDR" or tag.lower() == "leader":
                     record.leader = Leader(line[tag])
+                    print(f"leader is {record.leader}")
                     continue
                 # some marc files use the unit separator with unicode value 31, control picture ␟,
                 # to mark beginning of a subfield, so first we replace this with $
                 line[tag] = line[tag].replace(chr(31), "$")
                 if "$" in line[tag][:3]:
                     indicators, field_text = line[tag].split("$", maxsplit=1)
-                    indicators = indicators.replace(" ", "\\")
+                    indicators = indicators.replace("\\", " ")
                     indicators = [char for char in indicators][:2]
                 else:
-                    indicators, field_text = (["\\", "\\"], line[tag])
-                field_text = field_text.strip()
-                subfields = (
-                    [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
-                    if field_text
-                    else []
-                )
-                field = Field(
-                    tag=tag,
-                    indicators=Indicators(*indicators),
-                    subfields=subfields,
-                )
+                    indicators, field_text = (None, line[tag])
+                if indicators:
+                    subfields = (
+                        [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
+                        if field_text
+                        else []
+                    )
+                    field = Field(
+                        tag=tag,
+                        indicators=Indicators(*indicators),
+                        subfields=subfields,
+                    )
+                else:
+                    field = Field(
+                        tag = tag,
+                        data = field_text,
+                    )
                 record.add_field(field)
 
             print(record.__str__())
@@ -172,5 +178,7 @@ if __name__ == "__main__":
 
     # now, handle csv to marc conversion: here, ext is marc, mrc, dat, etc.
     dest = filepath.parent / f"{filepath.name.split('.')[0]}_fromCSV.{ext}"
+    if dest.exists():
+        dest.unlink()
     print(f"dest is {dest}")
     to_marc(filepath, dest)

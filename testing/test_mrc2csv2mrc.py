@@ -28,4 +28,9 @@ def test_2marc():
         reader1 = MARCReader(f1)
         reader2 = MARCReader(f2)
         for line1, line2 in zip(reader1, reader2):
-            assert line1 == line2, f"line1 is{line1}; \n line2 is {line2}"
+            if line1 or line2: 
+                assert line1 and line2
+                dict1 = line1.as_dict()
+                dict2 = line2.as_dict()
+                for key in dict1:
+                    assert dict1[key] == dict2[key], f"line1 is{line1}; \n line2 is {line2}"
