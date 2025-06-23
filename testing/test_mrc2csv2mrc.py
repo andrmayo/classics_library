@@ -28,8 +28,4 @@ def test_2marc():
         reader1 = MARCReader(f1)
         reader2 = MARCReader(f2)
         for line1, line2 in zip(reader1, reader2):
-            print(line1, line2)
-
-test_2marc()
-
-    
+            assert line1 == line2, f"line1 is{line1}; \n line2 is {line2}"

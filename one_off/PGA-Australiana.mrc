@@ -1,0 +1,1 @@
+00304nam  2200085ua 45e0008004100000100003300041245004300074500005400117856004700171070529s9999    xx            000 0 und d1 aAmundsen, Roald,d1872-1928.14aThe South Poleh[electronic resource].  aAn ebook provided by Project Gutenberg Australia.40uhttp://gutenberg.net.au/ebooks/e00111.txt 

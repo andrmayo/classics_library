@@ -106,6 +106,7 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
             for tag in line.keys():
                 if tag.upper() == "LDR" or tag.lower() == "leader":
                     record.leader = Leader(line[tag])
+                    print(f"leader is {record.leader}")
                     continue
                 # some marc files use the unit separator with unicode value 31, control picture ␟,
                 # to mark beginning of a subfield, so first we replace this with $
