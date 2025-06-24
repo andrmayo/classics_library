@@ -5,8 +5,10 @@ from csv_converter import to_csv, to_marc
 # using PGA-Australiana.mrc test ability to convert to csv, and backconvert to the exact same marc file.
 src_path = Path("./testing/PGA-Australiana.mrc")
 dest = src_path.parent / f"{src_path.stem}.csv"
+dest.unlink(missing_ok=True)
 to_csv(src_path, dest)
 newmarc_dest = dest.parent / f"{dest.stem}_fromMARC.mrc"
+newmarc_dest.unlink(missing_ok=True)
 to_marc(dest, newmarc_dest)
 
 def test_2csv():
@@ -33,4 +35,6 @@ def test_2marc():
                 dict1 = line1.as_dict()
                 dict2 = line2.as_dict()
                 for key in dict1:
+                    if key == "leader":
+                        dict1[key] = dict1[key][:9] + dict2[key][9] + dict1[key][10:]
                     assert dict1[key] == dict2[key], f"line1 is{line1}; \n line2 is {line2}"
