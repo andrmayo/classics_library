@@ -108,6 +108,8 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
                     record.leader = Leader(line[tag])
                     print(f"leader is {record.leader}")
                     continue
+                if not line[tag]: # skip empty fields
+                    continue
                 # some marc files use the unit separator with unicode value 31, control picture ␟,
                 # to mark beginning of a subfield, so first we replace this with $
                 line[tag] = line[tag].replace(chr(31), "$")
@@ -171,6 +173,7 @@ if __name__ == "__main__":
 
     if ext == "csv":
         dest = filepath.parent / f"{filepath.name.split('.')[0]}.{ext}"
+        dest.unlink(missing_ok=True)
         print(f"dest is {dest}")
         to_csv(filepath, dest, include_indicator=True)
         sys.exit()
@@ -178,7 +181,6 @@ if __name__ == "__main__":
 
     # now, handle csv to marc conversion: here, ext is marc, mrc, dat, etc.
     dest = filepath.parent / f"{filepath.name.split('.')[0]}_fromCSV.{ext}"
-    if dest.exists():
-        dest.unlink()
+    dest.unlink(missing_ok=True)
     print(f"dest is {dest}")
     to_marc(filepath, dest)
