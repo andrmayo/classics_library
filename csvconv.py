@@ -1,4 +1,4 @@
-# script to convert between csv and marc formats
+# module and script to convert between csv and marc formats
 
 import csv
 import sys

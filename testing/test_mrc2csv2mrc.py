@@ -1,6 +1,6 @@
 from pathlib import Path
 from pymarc import MARCReader
-from csv_converter import to_csv, to_marc
+from csvconv import to_csv, to_marc
 
 # using PGA-Australiana.mrc test ability to convert to csv, and backconvert to the exact same marc file.
 src_path = Path("./testing/PGA-Australiana.mrc")
