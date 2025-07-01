@@ -1,9 +1,7 @@
 # script to process librarything marc output, 
 # by first converting to utf8 and then running mixedmarc.seperate_mixed_marc() on file
 
-from os import sep
 import pymarc
-import sys
 from pathlib import Path
 from mixedmarc import separate_mixed_marc
 
@@ -26,7 +24,16 @@ with open(marc8_file, 'rb') as fh:
 
         writer.close()
 
-i = i if i else 0
-print(f"Wrote {i+1} records to {utf8_fromMarc8} from {marc8_file}")
+i = i + 1 if i else 0
+print(f"Wrote {i} records to {utf8_fromMarc8} from {marc8_file}")
 marc8_file.unlink()
-print(f"deleted {marc8_file}")
+utf8_comb = Path("librarything_UMClassics_all.marc")
+utf8_comb.unlink(missing_ok=True)
+print(f"deleted {marc8_file}. Combining records and writing to {utf8_comb}")
+with open(utf8_from64, "r") as f1, open(utf8_comb, "a") as f2:
+    for line in f1:
+        f2.write(line)
+with open(utf8_fromMarc8, "r") as f1, open(utf8_comb, "a") as f2:
+    for line in f1:
+        f2.write(line)
+

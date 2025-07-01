@@ -9,9 +9,9 @@ from pymarc import MARCReader
 from pymarc import exceptions as exc
 from pymarc import Record, Field, Subfield, Indicators, Leader
 
-
+# note that force_unicode must be passed as False to process marc8 file
 def to_csv(
-    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True
+    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True, force_utf8=True
 ) -> None:
     """function to convert marc file to csv file.
     To include indicators in format <indicators>$<field>, pass include_indicator=True,
@@ -20,7 +20,7 @@ def to_csv(
 
     # create and get name of new file with all base64 converted to regular utf8
     with open(filepath, "rb") as f:
-        reader = MARCReader(f, to_unicode=True)
+        reader = MARCReader(f, to_unicode=True, force_utf8=force_utf8)
 
         csv_records = []
         # every entry should have a leader as first line,
