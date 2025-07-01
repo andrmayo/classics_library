@@ -11,7 +11,7 @@ from pymarc import Record, Field, Subfield, Indicators, Leader
 
 # note that force_unicode must be passed as False to process marc8 file
 def to_csv(
-    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True, force_utf8=True
+    filepath: Union[str, Path], dest: Union[str, Path], include_indicator=True, force_utf8=False
 ) -> None:
     """function to convert marc file to csv file.
     To include indicators in format <indicators>$<field>, pass include_indicator=True,
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         dest = filepath.parent / f"{filepath.name.split('.')[0]}.{ext}"
         dest.unlink(missing_ok=True)
         print(f"dest is {dest}")
-        to_csv(filepath, dest, include_indicator=True)
+        to_csv(filepath, dest, include_indicator=True, force_utf8=True)
         sys.exit()
     # this refers to the extension for the file to write, i.e. to convert to
 
