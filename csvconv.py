@@ -4,6 +4,7 @@ import csv
 import sys
 from pathlib import Path
 from typing import Union
+from io import BytesIO, StringIO
 
 from pymarc import MARCReader
 from pymarc import exceptions as exc
@@ -94,12 +95,12 @@ def to_csv(
         file_writer.writerows(csv_records)
 
 
-def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
+def to_marc(filepath: Union[str, Path, StringIO, BytesIO], dest: Union[str, Path]) -> None:
     """
     Function to convert csv file to marc file. Assumes that csv file has the format
     output by to_csv above. Not yet tested.
     """
-    with open(filepath, "r") as f:
+    with open(filepath, "r") as f: # type: ignore
         reader = csv.DictReader(f)
         for line in reader:
             record = Record()
@@ -143,7 +144,7 @@ def to_marc(filepath: Union[str, Path], dest: Union[str, Path]) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 0:
+    if len(sys.argv) == 1:
         msg = """
         "Please provide the filename or path of the marc or csv file you want to convert."
         """

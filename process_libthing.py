@@ -4,6 +4,8 @@
 import pymarc
 from pathlib import Path
 from mixedmarc import separate_mixed_marc
+from csvconv import to_csv
+from marccsv import CSVReader
 
 src_file = Path("librarything_UMClassics.marc")
 marc8_file, utf8_from64 = separate_mixed_marc(src_file, encoding="ISO-8859-1")
@@ -37,3 +39,8 @@ with open(utf8_fromMarc8, "r") as f1, open(utf8_comb, "a") as f2:
     for line in f1:
         f2.write(line)
 
+csv_file = utf8_comb.parent / f"{utf8_comb.stem}.csv"
+to_csv(utf8_comb, csv_file, force_utf8=True)
+csvreader = CSVReader(csv_file)
+csvreader.html_ent()
+csvreader.to_marc()
