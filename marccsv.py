@@ -51,7 +51,7 @@ class CSVReader:
             sys.stderr.write(
                 "Streaming not yet implemented, your data will be loaded into memory\n"
             )
-        self.records = pd.read_csv(self.file_handle, encoding=encoding) 
+        self.records = pd.read_csv(self.file_handle, encoding=encoding)
 
     def __iter__(self) -> Iterator:
         self.iter = iter(self.records.iterrows())
@@ -93,7 +93,7 @@ class CSVReader:
     def html_ent(self) -> None:
         """Converts all non-ASCII utf-8 characters to their ASCII-compatible entity names."""
         self.records = self.records.map(repl_nonASCII, na_action="ignore")
-        self.records.to_csv(self.file_handle)
+        self.records.to_csv(self.file_handle, index=False)
 
     def to_marc(self, marc_dest=None) -> None:
         if not marc_dest:
