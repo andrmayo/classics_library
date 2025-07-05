@@ -90,6 +90,58 @@ class CSVReader:
             rec.add_field(field)
         return rec
 
+    def get_record(self, index: int, by_loc: bool=False) -> Record:
+        """Takes in an index integer and returns relevant line of csv as Record object"""
+        record = Record()
+        if not by_loc:
+            for col in self.records.columns:
+                if isinstance(col, str) and (col.lower() == "leader" or col.lower() == "ldr"):
+                    record.leader = Leader(self.records.iloc[index][col])
+                    record.leader = Leader(self.records.iloc[index][col])
+                    continue
+                if pd.isna(self.records.iloc[index][col]):
+                    continue
+                field_tag = col if isinstance(col, str) else str(col)
+                if isinstance(self.records.iloc[index][col], str):
+                    field_text = self.records.iloc[index][col]
+                else:
+                    field_text = str(self.records.iloc[index][col])
+                # this requires that subfields be demarcated with '$'
+                if "$" in field_text[:3]:
+                    indicators, field_text = field_text.split("$", maxsplit=1)
+                    indicators = indicators.replace("\\", " ")
+                    indicators = [char for char in indicators][:2]
+                    subfields = [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
+                    field = Field(tag = field_tag, indicators=Indicators(*indicators), subfields = subfields)
+                else:
+                    field = Field(tag = field_tag, data=field_text)
+                record.add_field(field)
+            return record
+
+        for col in self.records.columns:
+            if isinstance(col, str) and (col.lower() == "leader" or col.lower() == "ldr"):
+                record.leader = Leader(self.records.iloc[index][col])
+                record.leader = Leader(self.records.iloc[index][col])
+                continue
+            if pd.isna(self.records.iloc[index][col]):
+                continue
+            field_tag = col if isinstance(col, str) else str(col)
+            if isinstance(self.records.iloc[index][col], str):
+                field_text = self.records.iloc[index][col]
+            else:
+                field_text = str(self.records.iloc[index][col])
+            # this requires that subfields be demarcated with '$'
+            if "$" in field_text[:3]:
+                indicators, field_text = field_text.split("$", maxsplit=1)
+                indicators = indicators.replace("\\", " ")
+                indicators = [char for char in indicators][:2]
+                subfields = [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
+                field = Field(tag = field_tag, indicators=Indicators(*indicators), subfields = subfields)
+            else:
+                field = Field(tag = field_tag, data=field_text)
+            record.add_field(field)
+        return record
+
     def html_ent(self) -> None:
         """Converts all non-ASCII utf-8 characters to their ASCII-compatible entity names."""
         self.records = self.records.map(repl_nonASCII, na_action="ignore")
