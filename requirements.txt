@@ -61,6 +61,7 @@ numpy==2.2.5
 overrides==7.7.0
 packaging==25.0
 pandas==2.2.3
+pandas-stubs==2.2.3.250527
 pandocfilters==1.5.1
 parso==0.8.4
 pexpect==4.9.0
@@ -98,7 +99,9 @@ terminado==0.18.1
 tinycss2==1.4.0
 tornado==6.5
 traitlets==5.14.3
+types-html5lib==1.1.11.20250516
 types-python-dateutil==2.9.0.20250516
+types-pytz==2025.2.0.20250516
 typing-extensions==4.13.2
 typing-inspection==0.4.1
 tzdata==2025.2
