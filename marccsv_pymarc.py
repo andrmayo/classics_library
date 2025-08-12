@@ -1,14 +1,13 @@
 # module useful for working with csv representation of marc file
 # draws heavily from pymarc/reader.py
 
-
 import os
 import sys
 from pathlib import Path
 from collections.abc import Iterator
-from io import BytesIO, StringIO
+from io import BytesIO, IOBase, StringIO
 from typing import Union
-import pandas as pd
+import csv
 
 from pymarc import Field, Indicators, Leader, Record, Subfield
 
@@ -26,8 +25,6 @@ class Reader:
 class CSVReader(Reader):
     """CSV Reader."""
 
-    records: pd.DataFrame
-
     def __init__(
         self,
         marc_target: Union[bytes, str, Path],
@@ -35,33 +32,36 @@ class CSVReader(Reader):
         marc_dest: Union[None, str, Path] = None,
         stream: bool = False,
     ) -> None:
-        """Basically the argument you pass in should be raw csv in transmission format or
-        an object that responds to read()."""
-        # streaming is not implemented.
+        """Basically the argument you pass in should be raw csv in transmission format.
+        A csv.DictReader object is used to handle the records."""
+        # streaming is not i9mplemented.
         # Note that unlike the JSONReader this does not accept any IOBase object.
         self.encoding = encoding
         self.marc_dest = marc_dest
-        if isinstance(marc_target, str) and os.path.exists(marc_target):
+        if isinstance(marc_target, IOBase):
             self.file_handle = marc_target
-        elif isinstance(marc_target, Path) and marc_target.exists():
-            self.file_handle = marc_target
-        elif isinstance(marc_target, str):
-            # case where marc_target is the csv content itself as a string
-            self.file_handle = StringIO(marc_target)  # type: ignore
         else:
-            self.file_handle = BytesIO(marc_target)  # type: ignore
-
+            if isinstance(marc_target, str) and os.path.exists(marc_target):
+                self.file_handle = open(marc_target)  # noqa: SIM115
+            elif isinstance(marc_target, Path) and marc_target.exists():
+                self.file_handle = open(marc_target)  # noqa: SIM115
+            else:
+                self.file_handle = StringIO(marc_target)  # type: ignore
         if stream:
             sys.stderr.write(
                 "Streaming not yet implemented, your data will be loaded into memory\n"
             )
-        self.records = pd.read_csv(self.file_handle, encoding=encoding)
+        self.records = csv.DictReader(self.file_handle)
 
     def __iter__(self) -> Iterator:
-        self.iter = iter(self.records.iterrows())
+        if hasattr(self.records, "__iter__") and not isinstance(self.records, dict):
+            self.iter = iter(self.records)
+        else:
+            self.iter = iter([self.records])
         return self
 
     def __next__(self) -> Iterator:
+        line = next(self.iter)
         line: pd.Series = next(self.iter)[1]
         rec = Record()
         for field in line[line.notnull()].keys():
