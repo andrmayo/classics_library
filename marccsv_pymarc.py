@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from collections.abc import Iterator
 from io import IOBase, StringIO
-from typing import Union
+from typing import Union, Iterable, Optional
 import csv
 
 from pymarc import Field, Indicators, Leader, Record, Subfield
@@ -22,9 +22,9 @@ class Reader:
 
 
 class CSVReader(Reader):
-    """CSV Reader.""" 
+    """CSV Reader."""
 
-    file_handle: IOBase
+    file_handle: Iterable[str]  # required type for DictReader
 
     def __init__(
         self,
@@ -51,21 +51,20 @@ class CSVReader(Reader):
             sys.stderr.write(
                 "Streaming not yet implemented, your data will be loaded into memory\n"
             )
-        reader = csv.DictReader(self.file_handle)
-        self.records = csv.DictReader(self.file_handle)
+        self.records = [rec for rec in csv.DictReader(self.file_handle)]
 
-    def __iter__(self) -> Iterator:
-        if hasattr(self.records, "__iter__") and not isinstance(self.records, dict):
-            self.iter = iter(self.records)
-        else:
-            self.iter = iter([self.records])
+    def __iter__(self) -> Iterator:  # type: ignore
+        self.iter = iter(self.records)
         return self
 
     def __next__(self) -> Iterator:
         line = next(self.iter)
-        line: pd.Series = next(self.iter)[1]
+        line: dict = next(self.iter)
+        return self._make_record(line)
+
+    def _make_record(self, line):
         rec = Record()
-        for field in line[line.notnull()].keys():
+        for field in line:
             if isinstance(field, str) and (
                 field.upper() == "LDR" or field.lower() == "leader"
             ):
@@ -97,73 +96,9 @@ class CSVReader(Reader):
             rec.add_field(field)
         return rec
 
-    def get_record(self, index: int, by_loc: bool = False) -> Record:
+    def get_record(self, index: int) -> Record:
         """Takes in an index integer and returns relevant line of csv as Record object"""
-        record = Record()
-        if not by_loc:
-            for col in self.records.columns:
-                if isinstance(col, str) and (
-                    col.lower() == "leader" or col.lower() == "ldr"
-                ):
-                    record.leader = Leader(self.records.iloc[index][col])
-                    record.leader = Leader(self.records.iloc[index][col])
-                    continue
-                if pd.isna(self.records.iloc[index][col]):
-                    continue
-                field_tag = col if isinstance(col, str) else str(col)
-                if isinstance(self.records.iloc[index][col], str):
-                    field_text = self.records.iloc[index][col]
-                else:
-                    field_text = str(self.records.iloc[index][col])
-                # this requires that subfields be demarcated with '$'
-                if "$" in field_text[:3]:
-                    indicators, field_text = field_text.split("$", maxsplit=1)
-                    indicators = indicators.replace("\\", " ")
-                    indicators = [char for char in indicators][:2]
-                    subfields = [
-                        Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")
-                    ]
-                    field = Field(
-                        tag=field_tag,
-                        indicators=Indicators(*indicators),
-                        subfields=subfields,
-                    )
-                else:
-                    field = Field(tag=field_tag, data=field_text)
-                record.add_field(field)
-            return record
-
-        for col in self.records.columns:
-            if isinstance(col, str) and (
-                col.lower() == "leader" or col.lower() == "ldr"
-            ):
-                record.leader = Leader(self.records.iloc[index][col])
-                record.leader = Leader(self.records.iloc[index][col])
-                continue
-            if pd.isna(self.records.iloc[index][col]):
-                continue
-            field_tag = col if isinstance(col, str) else str(col)
-            if isinstance(self.records.iloc[index][col], str):
-                field_text = self.records.iloc[index][col]
-            else:
-                field_text = str(self.records.iloc[index][col])
-            # this requires that subfields be demarcated with '$'
-            if "$" in field_text[:3]:
-                indicators, field_text = field_text.split("$", maxsplit=1)
-                indicators = indicators.replace("\\", " ")
-                indicators = [char for char in indicators][:2]
-                subfields = [
-                    Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")
-                ]
-                field = Field(
-                    tag=field_tag,
-                    indicators=Indicators(*indicators),
-                    subfields=subfields,
-                )
-            else:
-                field = Field(tag=field_tag, data=field_text)
-            record.add_field(field)
-        return record
+        return self._make_record(self.records[index])
 
     def html_ent(self) -> None:
         """Converts all non-ASCII utf-8 characters to their ASCII-compatible entity names."""
@@ -193,8 +128,9 @@ class CSVReader(Reader):
             Path(self.marc_dest).unlink(missing_ok=True)
         else:
             Path(self.marc_dest).unlink(missing_ok=True)
-        to_marc(self.file_handle, marc_dest)
 
+        reader = csv.DictReader(self.file_handle)
+        # to_marc(self.file_handle, marc_dest)
 
 
 def to_marc(filepath: Union[str, Path, StringIO], dest: Union[str, Path]) -> None:
@@ -202,7 +138,7 @@ def to_marc(filepath: Union[str, Path, StringIO], dest: Union[str, Path]) -> Non
     Function to convert csv file to marc file. Assumes that csv file has the format
     output by to_csv above. Not yet tested.
     """
-    with open(filepath, "r") as f: # type: ignore
+    with open(filepath, "r") as f:  # type: ignore
         reader = csv.DictReader(f)
         for line in reader:
             record = Record()
@@ -211,7 +147,7 @@ def to_marc(filepath: Union[str, Path, StringIO], dest: Union[str, Path]) -> Non
                     record.leader = Leader(line[tag])
                     print(f"leader is {record.leader}")
                     continue
-                if not line[tag]: # skip empty fields
+                if not line[tag]:  # skip empty fields
                     continue
                 # some marc files use the unit separator with unicode value 31, control picture ␟,
                 # to mark beginning of a subfield, so first we replace this with $
@@ -224,7 +160,10 @@ def to_marc(filepath: Union[str, Path, StringIO], dest: Union[str, Path]) -> Non
                     indicators, field_text = (None, line[tag])
                 if indicators:
                     subfields = (
-                        [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
+                        [
+                            Subfield(code=s[0], value=s[1:])
+                            for s in field_text.split("$")
+                        ]
                         if field_text
                         else []
                     )
@@ -235,8 +174,8 @@ def to_marc(filepath: Union[str, Path, StringIO], dest: Union[str, Path]) -> Non
                     )
                 else:
                     field = Field(
-                        tag = tag,
-                        data = field_text,
+                        tag=tag,
+                        data=field_text,
                     )
                 record.add_field(field)
 
