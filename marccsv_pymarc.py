@@ -5,13 +5,12 @@ import os
 import sys
 from pathlib import Path
 from collections.abc import Iterator
-from io import BytesIO, IOBase, StringIO
+from io import IOBase, StringIO
 from typing import Union
 import csv
 
 from pymarc import Field, Indicators, Leader, Record, Subfield
 
-from csvconv import to_marc
 from htmlutils import repl_nonASCII
 
 
@@ -23,7 +22,9 @@ class Reader:
 
 
 class CSVReader(Reader):
-    """CSV Reader."""
+    """CSV Reader.""" 
+
+    file_handle: IOBase
 
     def __init__(
         self,
@@ -34,8 +35,7 @@ class CSVReader(Reader):
     ) -> None:
         """Basically the argument you pass in should be raw csv in transmission format.
         A csv.DictReader object is used to handle the records."""
-        # streaming is not i9mplemented.
-        # Note that unlike the JSONReader this does not accept any IOBase object.
+        # streaming is not implemented.
         self.encoding = encoding
         self.marc_dest = marc_dest
         if isinstance(marc_target, IOBase):
@@ -51,6 +51,7 @@ class CSVReader(Reader):
             sys.stderr.write(
                 "Streaming not yet implemented, your data will be loaded into memory\n"
             )
+        reader = csv.DictReader(self.file_handle)
         self.records = csv.DictReader(self.file_handle)
 
     def __iter__(self) -> Iterator:
@@ -193,3 +194,52 @@ class CSVReader(Reader):
         else:
             Path(self.marc_dest).unlink(missing_ok=True)
         to_marc(self.file_handle, marc_dest)
+
+
+
+def to_marc(filepath: Union[str, Path, StringIO], dest: Union[str, Path]) -> None:
+    """
+    Function to convert csv file to marc file. Assumes that csv file has the format
+    output by to_csv above. Not yet tested.
+    """
+    with open(filepath, "r") as f: # type: ignore
+        reader = csv.DictReader(f)
+        for line in reader:
+            record = Record()
+            for tag in line.keys():
+                if tag.upper() == "LDR" or tag.lower() == "leader":
+                    record.leader = Leader(line[tag])
+                    print(f"leader is {record.leader}")
+                    continue
+                if not line[tag]: # skip empty fields
+                    continue
+                # some marc files use the unit separator with unicode value 31, control picture ␟,
+                # to mark beginning of a subfield, so first we replace this with $
+                line[tag] = line[tag].replace(chr(31), "$")
+                if "$" in line[tag][:3]:
+                    indicators, field_text = line[tag].split("$", maxsplit=1)
+                    indicators = indicators.replace("\\", " ")
+                    indicators = [char for char in indicators][:2]
+                else:
+                    indicators, field_text = (None, line[tag])
+                if indicators:
+                    subfields = (
+                        [Subfield(code=s[0], value=s[1:]) for s in field_text.split("$")]
+                        if field_text
+                        else []
+                    )
+                    field = Field(
+                        tag=tag,
+                        indicators=Indicators(*indicators),
+                        subfields=subfields,
+                    )
+                else:
+                    field = Field(
+                        tag = tag,
+                        data = field_text,
+                    )
+                record.add_field(field)
+
+            print(record.__str__())
+            with open(dest, "ab") as out:
+                out.write(record.as_marc())

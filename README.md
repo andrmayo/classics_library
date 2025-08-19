@@ -37,6 +37,8 @@ records such that all non-ASCII characters are replaced by their html representa
 The process of disentangling the different record encodings, converting them to a csv serialization with utf-8 encoding, replacing all
 non-ASCII characters with html entity representations, and converting back to marc format is done by `process_libthing.py`.
 
+The final output file in marc format is `librarything_UMClassics_all.marc`.
+
 ## Test data
 
 A simple case, without complex subfield structures or base64 encoding, is the file `PGA-Australiana.csv` in this repo,
