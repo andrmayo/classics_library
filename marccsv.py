@@ -57,11 +57,11 @@ class CSVReader(Reader):
             )
         self.records = pd.read_csv(self.file_handle, encoding=encoding)
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> Iterator:  # type: ignore
         self.iter = iter(self.records.iterrows())
         return self
 
-    def __next__(self) -> Iterator:
+    def __next__(self) -> Record:
         line: pd.Series = next(self.iter)[1]
         rec = Record()
         for field in line[line.notnull()].keys():
@@ -70,7 +70,7 @@ class CSVReader(Reader):
             ):
                 rec.leader = Leader(line[field])
                 continue
-            line[field] = line[field].replace(chr(31), "$")
+            line[field] = str(line[field]).replace(chr(31), "$")
             if "$" in line[field][:3]:
                 indicators, field_text = line[field].split("$", maxsplit=1)
                 indicators = indicators.replace("\\", " ")
